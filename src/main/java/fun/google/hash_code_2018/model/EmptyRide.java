@@ -17,36 +17,58 @@ public class EmptyRide implements Ride {
         this.latestFinish = simulation.maps.getSteps();
     }
 
+    @Override
     public String getRideId() {
         return rideId;
     }
 
+    @Override
     public Point getStart() {
         return start;
     }
 
+    @Override
     public Point getFinish() {
         return finish;
     }
 
+    @Override
     public int getEarliestStart() {
         return -1;
     }
 
+    @Override
+    public int getLatestStart() {
+        return 0;
+    }
+
+    @Override
+    public int getEarliestFinish() {
+        return 0;
+    }
+
+    @Override
     public int getLatestFinish() {
         return latestFinish;
     }
 
+    @Override
     public int getDuration() {
         return duration;
     }
 
+    @Override
     public int getSize() {
         return 0;
     }
 
+    @Override
     public int getScore() {
         return 0;
     }
 
+    @Override
+    public int getBonus() {
+        return 0;
+    }
 }

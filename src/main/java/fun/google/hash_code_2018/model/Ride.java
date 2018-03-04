@@ -10,11 +10,17 @@ public interface Ride {
 
     int getEarliestStart();
 
+    int getLatestStart();
+
+    int getEarliestFinish();
+
     int getLatestFinish();
 
     int getDuration();
 
     int getScore();
+
+    int getBonus();
 
     int getSize();
 

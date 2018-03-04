@@ -14,6 +14,6 @@ public class main {
         long timeStart = System.currentTimeMillis();
         Map<String, Maps> stringObjectMap = ReadFile.getFileFromPath();
         WriteFile.writeFileToPath(stringObjectMap);
-        System.out.println((System.currentTimeMillis() - timeStart) / 1000 + " seconds in total");
+        System.out.println((System.currentTimeMillis() - timeStart) / 1000.0 + " seconds in total");
     }
 }

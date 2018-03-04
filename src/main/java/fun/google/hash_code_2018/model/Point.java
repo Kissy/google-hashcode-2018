@@ -22,4 +22,9 @@ public class Point {
     public int distanceTo(Point point) {
         return Math.abs(point.x - this.x) + Math.abs(point.y - this.y);
     }
+
+    @Override
+    public String toString() {
+        return "[" + x + ", " + y + ']';
+    }
 }

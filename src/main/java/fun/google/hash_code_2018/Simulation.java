@@ -1,83 +1,119 @@
 package fun.google.hash_code_2018;
 
+import fun.google.hash_code_2018.model.BookedRide;
 import fun.google.hash_code_2018.model.Maps;
 import fun.google.hash_code_2018.model.Ride;
+import fun.google.hash_code_2018.model.StartingRide;
 import fun.google.hash_code_2018.model.VehicleRides;
-import fun.google.hash_code_2018.model.BookedRide;
+import io.jenetics.EnumGene;
+import io.jenetics.Gene;
+import io.jenetics.Optimize;
+import io.jenetics.PartiallyMatchedCrossover;
+import io.jenetics.Phenotype;
+import io.jenetics.SwapMutator;
+import io.jenetics.engine.Engine;
+import io.jenetics.engine.EvolutionStatistics;
+import io.jenetics.util.ISeq;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
+
+import static io.jenetics.engine.EvolutionResult.toBestPhenotype;
+import static io.jenetics.engine.Limits.bySteadyFitness;
 
 public class Simulation {
 
     public Maps maps = null;
 
     public int simulate() {
-        /*List<VehicleRides> rides = maps.getRides().parallelStream()
-                .map(r1 -> new VehicleRides(this, r1))
-                .filter(vr -> vr.getRatio() > 0)
-                .flatMap(vr -> maps.getRides().stream().filter(r2 -> !vr.getRides().contains(r2)).map(r2 -> new VehicleRides(this, vr, r2)))
-                .filter(vr -> vr.getRatio() > 0)
-                .sorted(Comparator.comparingDouble(VehicleRides::getInvertRatio))
-                .collect(Collectors.toList());*/
+        maps.getRides().forEach(r1 -> {
+            maps.getRides().parallelStream()
+                    .filter(r2 -> r2 != r1)
+                    .mapToInt(r2 -> {
+                        int distanceTo = r1.getFinish().distanceTo(r2.getStart());
+                        int earliestArrival = r1.getEarliestFinish() + distanceTo;
+                        if (earliestArrival <= r2.getLatestStart()) {
+                            return distanceTo;
+                        }
+                        return Integer.MAX_VALUE;
+                    })
+                    .min()
+                    .ifPresent(((BookedRide) r1)::setTimeToClosestNextRide);
+        });
 
-        List<VehicleRides> rides = maps.getRides().parallelStream()
-                .flatMap(r1 -> maps.getRides().stream().filter(r2 -> r1 != r2).map(r2 -> new VehicleRides(this, r1, r2)))
-                .filter(vr -> vr.getRatio() > 0)
-                .sorted(Comparator.comparingDouble(VehicleRides::getInvertRatio))
-                .collect(Collectors.toList());
-
-        System.out.println(rides);
-
-        return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
-    }
-
-    public int simulate2() {
-        // Stats
-        int allRidesDuration = maps.getRides().stream().mapToInt(Ride::getDuration).sum();
-        int totalAvailableDuration = maps.getVehicles() * maps.getSteps();
-        double targetOccupancy = allRidesDuration / (double) totalAvailableDuration;
-//        System.out.println("Rides (availbles vs total) = " + totalAvailableDuration + " vs " + allRidesDuration + " (" + targetOccupancy + ")");
-
-        List<VehicleRides> startingRides = maps.getRides().parallelStream()
-                .map(sr -> new VehicleRides(this, sr))
-                .filter(sr -> sr.getRatio() > 0)
-                .sorted(Comparator.comparingDouble(VehicleRides::getInvertRatio))
-                .limit(maps.getVehicles())
-                .collect(Collectors.toList());
-
-        startingRides.stream().flatMap(VehicleRides::getRidesStream).forEach(maps.getRides()::remove);
-        maps.getVehicleRides().addAll(startingRides);
-
-        int maxIteration = 3;
-        for (int iteration = 0; iteration < maxIteration; iteration ++) {
-            final List<Ride> remainingRides = new ArrayList<>();
-            final double startingBestRatio = (iteration == maxIteration - 1) ? 0 : 0.6d + 0.35d * ((maxIteration - iteration) / (double) maxIteration);
-            maps.getRides().forEach(remainingRide -> {
-                double bestRatio = startingBestRatio;
-                VehicleRides bestRidesToAdd = null;
-                for (VehicleRides vehicleRides : maps.getVehicleRides()) {
-                    VehicleRides newVehicleRides = new VehicleRides(this, vehicleRides, remainingRide);
-                    if (newVehicleRides.getRatio() <= 0) {
-                        continue;
-                    }
-
-                    if (newVehicleRides.getRatio() > bestRatio) {
-                        bestRatio = newVehicleRides.getRatio();
-                        bestRidesToAdd = vehicleRides;
-                    }
-                }
-                if (bestRidesToAdd != null) {
-                    bestRidesToAdd.addRide(this, remainingRide);
-                } else {
-                    remainingRides.add(remainingRide);
-                }
-            });
-            maps.getRides().clear();
-            maps.getRides().addAll(remainingRides);
+        for (int i = 0; i < maps.getVehicles(); i++) {
+            maps.getVehicleRides().add(new VehicleRides(this));
         }
+
+        int remainingRides = 0;
+        while (maps.getRides().size() != remainingRides) {
+            remainingRides = maps.getRides().size();
+            maps.getVehicleRides().forEach(vr -> {
+                maps.getRides().parallelStream()
+                        .filter(vr::canRide)
+                        .min(Comparator.comparingInt(vr::wasteTimeTo))
+                        .ifPresent(vr::add);
+                maps.getRides().removeAll(vr.getRides());
+            });
+        }
+
+        System.out.println("Remaining rides " + remainingRides);
+
+        List<Ride> foundOrder = new ArrayList<>(maps.getRides());
+        maps.getVehicleRides().forEach(vr -> {
+            foundOrder.add(new StartingRide());
+            foundOrder.addAll(vr.getRides());
+        });
+
+        final TravelingSalesman tsm =
+                new TravelingSalesman(maps, ISeq.of(foundOrder));
+
+        final Engine<EnumGene<Ride>, Double> engine = Engine.builder(tsm)
+                .optimize(Optimize.MAXIMUM)
+                .alterers(
+                        new SwapMutator<>(0.15),
+                        new PartiallyMatchedCrossover<>(0.15)
+                )
+                .build();
+
+        // Create evolution statistics consumer.
+        final EvolutionStatistics<Double, ?>
+                statistics = EvolutionStatistics.ofNumber();
+
+        final Phenotype<EnumGene<Ride>, Double> best = engine.stream()
+                .limit(bySteadyFitness(10))
+                .limit(10)
+                .peek(statistics)
+                .peek(r -> System.out.println("Best fitness " + r.getBestFitness() + " at " + r.getGeneration()))
+                .collect(toBestPhenotype());
+
+        final ISeq<Ride> path = best.getGenotype()
+                .getChromosome().toSeq()
+                .map(Gene::getAllele);
+
+        double bestSum = tsm.fitness().apply(path);
+
+        System.out.println(statistics);
+        System.out.println("Best score: " + bestSum);
+
+        maps.getVehicleRides().clear();
+        VehicleRides nextRide = null;
+        for (Ride ride : path) {
+            if (ride instanceof StartingRide) {
+                if (nextRide != null) {
+                    maps.getVehicleRides().add(nextRide);
+                }
+                nextRide = new VehicleRides(this);
+                continue;
+            }
+            if (nextRide == null) {
+                continue;
+            }
+
+            nextRide.add(ride);
+        }
+        maps.getVehicleRides().add(nextRide);
 
         return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
     }

@@ -18,4 +18,12 @@
         </plugins>
     </build>
     <packaging>jar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.jenetics</groupId>
+            <artifactId>jenetics</artifactId>
+            <version>4.1.0</version>
+        </dependency>
+    </dependencies>
 </project>

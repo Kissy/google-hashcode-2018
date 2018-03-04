@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class VehicleRides implements Ride {
+public class VehicleRides implements Ride, Comparable<VehicleRides> {
     private final Simulation simulation;
     private List<Ride> rides = new ArrayList<>();
     private int duration = 0;
@@ -18,21 +18,30 @@ public class VehicleRides implements Ride {
 
     public VehicleRides(Simulation simulation, Ride ride) {
         this.simulation = simulation;
-        addRide(simulation, ride);
+        add(ride);
     }
 
     public VehicleRides(Simulation simulation, Ride ride1, Ride ride2) {
         this.simulation = simulation;
         this.rides.add(ride1);
-        addRide(simulation, ride2);
+        add(ride2);
     }
 
-    public void addRide(Simulation simulation, Ride ride) {
-        Point startingPoint = this.rides.isEmpty() ? Point.ORIGIN : getLastRide().getFinish();
-        this.rides.add(new EmptyRide(simulation, startingPoint, ride.getStart()));
+    public VehicleRides(Simulation simulation) {
+        this.simulation = simulation;
+    }
+
+    public void add(Ride ride) {
         this.rides.add(ride);
         calculateDurationAndScore();
         calculateRatio();
+    }
+
+    public Ride remove(int index) {
+        Ride removedRide = this.rides.remove(index);
+        calculateDurationAndScore();
+        calculateRatio();
+        return removedRide;
     }
 
     @Override
@@ -42,17 +51,30 @@ public class VehicleRides implements Ride {
 
     @Override
     public Point getStart() {
-        return getFirstRide().getStart();
+        return Point.ORIGIN;
     }
 
     @Override
     public Point getFinish() {
-        return getLastRide().getFinish();
+        if (this.rides.isEmpty()) {
+            return Point.ORIGIN;
+        }
+        return this.rides.get(this.rides.size() - 1).getFinish();
     }
 
     @Override
     public int getEarliestStart() {
-        return this.getFirstRide().getEarliestStart();
+        return 0;
+    }
+
+    @Override
+    public int getLatestStart() {
+        return getLatestFinish() - this.duration;
+    }
+
+    @Override
+    public int getEarliestFinish() {
+        return getEarliestStart() + this.duration;
     }
 
     @Override
@@ -65,8 +87,14 @@ public class VehicleRides implements Ride {
         return duration;
     }
 
+    @Override
     public int getScore() {
         return score + bonus;
+    }
+
+    @Override
+    public int getBonus() {
+        return this.bonus;
     }
 
     @Override
@@ -90,44 +118,55 @@ public class VehicleRides implements Ride {
         return rides.stream();
     }
 
-    private Ride getFirstRide() {
-        return this.rides.get(0);
-    }
-
-    private Ride getLastRide() {
-        return this.rides.get(rides.size() - 1);
-    }
-
     // Working method that calculate the score
     private void calculateDurationAndScore() {
-        this.score = this.rides.stream().mapToInt(Ride::getScore).sum();
+        this.score = 0;
         this.bonus = 0;
         this.duration = 0;
+        Point previousPoint = Point.ORIGIN;
         for (Ride currentRide : this.rides) {
-            if (duration < currentRide.getEarliestStart()) {
-                bonus += simulation.maps.getBonus();
+            // Go to ride starting point
+            duration += previousPoint.distanceTo(currentRide.getStart());
+            // wait for start of ride
+            duration = Math.max(duration, currentRide.getEarliestStart());
+            // Check for bonus
+            if (duration == currentRide.getEarliestStart()) {
+                bonus += currentRide.getBonus();
             }
-            duration = Math.max(this.duration, currentRide.getEarliestStart());
             duration += currentRide.getDuration();
-            if (duration > currentRide.getLatestFinish()) {
-                this.score = 0;
+            if (duration <= currentRide.getLatestFinish() && duration < simulation.maps.getSteps()) {
+                score += currentRide.getScore();
             }
-        }
-        if (duration > this.simulation.maps.getSteps()) {
-            this.score = 0;
+            previousPoint = currentRide.getFinish();
         }
     }
 
     private void calculateRatio() {
-        //double waitRatio = this.duration / (double) (getLastRide().getEarliestStart() - getFirstRide().getDuration());
-        double waitRatio = 0;
-        if (simulation.maps.getBonus() > 500) {
-            double scoreRatio = (1 / (double) this.duration) * this.bonus / 1000;
-            this.ratio = waitRatio > 0 ? scoreRatio * waitRatio : scoreRatio;
-        } else {
-            double scoreRatio = getScore() / (double) this.duration;
-            this.ratio = waitRatio > 0 ? scoreRatio * waitRatio : scoreRatio;
+//        double waitRatio = this.duration / (double) (getLastRide().getEarliestStart() - getFirstRide().getDuration());
+//        double waitRatio = 0;
+//        if (simulation.maps.getBonus() > 500) {
+//            double scoreRatio = (1 / (double) this.getDuration()) * this.bonus / 1000;
+//            this.ratio = waitRatio > 0 ? scoreRatio * waitRatio : scoreRatio;
+//        } else {
+//            double scoreRatio = getScore() / (double) this.getDuration();
+//            this.ratio = waitRatio > 0 ? scoreRatio * waitRatio : scoreRatio;
+//        }
+        // wasted time
+        this.ratio = this.duration - this.score;
+    }
+
+    public boolean canRide(Ride ride) {
+        VehicleRides vehicleRides = new VehicleRides(simulation, this, ride);
+        return vehicleRides.getDuration() <= ride.getLatestFinish() && vehicleRides.getDuration() < simulation.maps.getSteps();
+    }
+
+    public int wasteTimeTo(Ride ride) {
+        int durationToRide = this.getFinish().distanceTo(ride.getStart());
+        int finishFarMalus = (this.duration + durationToRide < simulation.maps.getSteps() * 0.98) ? (((BookedRide)ride).getTimeToClosestNextRide() / 5) : 0;
+        if (this.duration + durationToRide >= ride.getEarliestStart()) {
+            return durationToRide + finishFarMalus;
         }
+        return ride.getEarliestStart() - this.duration + finishFarMalus;
     }
 
     public String getStringToFile() {
@@ -136,6 +175,11 @@ public class VehicleRides implements Ride {
 
     @Override
     public String toString() {
-        return "VehicleRides{rides=" + rides.size() + ", duration=" + duration + ", score=" + score + ", bonus=" + bonus + '}';
+        return "VehicleRides{rides=" + rides.size() + ", duration=" + getDuration() + ", score=" + score + ", bonus=" + bonus + '}';
+    }
+
+    @Override
+    public int compareTo(VehicleRides vehicleRides) {
+        return Integer.compare(this.duration, vehicleRides.duration);
     }
 }
