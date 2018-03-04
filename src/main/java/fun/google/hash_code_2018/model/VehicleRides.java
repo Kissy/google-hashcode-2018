@@ -162,7 +162,7 @@ public class VehicleRides implements Ride, Comparable<VehicleRides> {
 
     public int wasteTimeTo(Ride ride) {
         int durationToRide = this.getFinish().distanceTo(ride.getStart());
-        int finishFarMalus = (this.duration + durationToRide < simulation.maps.getSteps() * 0.98) ? (((BookedRide)ride).getTimeToClosestNextRide() / 5) : 0;
+        int finishFarMalus = (this.duration + durationToRide < simulation.maps.getSteps() * 0.98) ? (((BookedRide)ride).getTimeToClosestNextRide() / 6) : 0;
         if (this.duration + durationToRide >= ride.getEarliestStart()) {
             return durationToRide + finishFarMalus;
         }

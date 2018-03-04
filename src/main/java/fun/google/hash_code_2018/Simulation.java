@@ -12,7 +12,6 @@ import io.jenetics.PartiallyMatchedCrossover;
 import io.jenetics.Phenotype;
 import io.jenetics.SwapMutator;
 import io.jenetics.engine.Engine;
-import io.jenetics.engine.EvolutionStatistics;
 import io.jenetics.util.ISeq;
 
 import java.util.ArrayList;
@@ -27,6 +26,22 @@ public class Simulation {
     public Maps maps = null;
 
     public int simulate() {
+        maps.getRides().forEach(r1 -> {
+            maps.getRides().parallelStream()
+                    .filter(r2 -> r2 != r1)
+                    .mapToInt(r2 -> {
+                        int distanceTo = r1.getFinish().distanceTo(r2.getStart());
+                        int earliestArrival = r1.getEarliestFinish() + distanceTo;
+                        if (earliestArrival <= r2.getLatestStart()) {
+                            return distanceTo;
+                        }
+                        return Integer.MAX_VALUE;
+                    })
+                    .min()
+                    .ifPresent(((BookedRide) r1)::setTimeToClosestNextRide);
+        });
+
+
         maps.getRides().forEach(r1 -> {
             maps.getRides().parallelStream()
                     .filter(r2 -> r2 != r1)
@@ -60,6 +75,15 @@ public class Simulation {
 
         System.out.println("Remaining rides " + remainingRides);
 
+        maps.getRides().sort(Comparator.comparingInt(r -> ((BookedRide) r).getTimeToClosestNextRide()));
+        maps.getVehicleRides().sort(Comparator.comparingInt(Ride::getDuration));
+
+        //geneticEngine();
+
+        return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
+    }
+
+    private void geneticEngine() {
         List<Ride> foundOrder = new ArrayList<>(maps.getRides());
         maps.getVehicleRides().forEach(vr -> {
             foundOrder.add(new StartingRide());
@@ -77,14 +101,9 @@ public class Simulation {
                 )
                 .build();
 
-        // Create evolution statistics consumer.
-        final EvolutionStatistics<Double, ?>
-                statistics = EvolutionStatistics.ofNumber();
-
         final Phenotype<EnumGene<Ride>, Double> best = engine.stream()
                 .limit(bySteadyFitness(10))
                 .limit(10)
-                .peek(statistics)
                 .peek(r -> System.out.println("Best fitness " + r.getBestFitness() + " at " + r.getGeneration()))
                 .collect(toBestPhenotype());
 
@@ -94,7 +113,6 @@ public class Simulation {
 
         double bestSum = tsm.fitness().apply(path);
 
-        System.out.println(statistics);
         System.out.println("Best score: " + bestSum);
 
         maps.getVehicleRides().clear();
@@ -114,8 +132,6 @@ public class Simulation {
             nextRide.add(ride);
         }
         maps.getVehicleRides().add(nextRide);
-
-        return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
     }
 
     public boolean isInitialized() {
