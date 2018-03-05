@@ -102,6 +102,19 @@ public class VehicleRides implements Ride, Comparable<VehicleRides> {
         return this.rides.stream().mapToInt(Ride::getSize).sum();
     }
 
+    @Override
+    public int getTimeToClosestNextRide() {
+        if (this.rides.isEmpty()) {
+            return simulation.maps.getSteps();
+        }
+        return this.rides.get(this.rides.size() - 1).getTimeToClosestNextRide();
+    }
+
+    @Override
+    public void setTimeToClosestNextRide(int timeToClosestNextRide) {
+        throw new IllegalStateException("cannot set timeToClosestNextRide in this class");
+    }
+
     public double getRatio() {
         return ratio;
     }
@@ -160,9 +173,9 @@ public class VehicleRides implements Ride, Comparable<VehicleRides> {
         return vehicleRides.getDuration() <= ride.getLatestFinish() && vehicleRides.getDuration() < simulation.maps.getSteps();
     }
 
-    public int wasteTimeTo(Ride ride) {
+    public double wasteTimeTo(Ride ride) {
         int durationToRide = this.getFinish().distanceTo(ride.getStart());
-        int finishFarMalus = (this.duration + durationToRide < simulation.maps.getSteps() * 0.98) ? (((BookedRide)ride).getTimeToClosestNextRide() / 6) : 0;
+        double finishFarMalus = (this.duration + durationToRide < simulation.maps.getLongRideMinStep()) ? (ride.getTimeToClosestNextRide() / simulation.maps.getLongRideRatio()) : 0;
         if (this.duration + durationToRide >= ride.getEarliestStart()) {
             return durationToRide + finishFarMalus;
         }

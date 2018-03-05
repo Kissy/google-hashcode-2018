@@ -63,6 +63,16 @@ public class EmptyRide implements Ride {
     }
 
     @Override
+    public int getTimeToClosestNextRide() {
+        return 0;
+    }
+
+    @Override
+    public void setTimeToClosestNextRide(int timeToClosestNextRide) {
+
+    }
+
+    @Override
     public int getScore() {
         return 0;
     }

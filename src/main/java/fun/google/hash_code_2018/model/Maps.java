@@ -12,6 +12,8 @@ public class Maps {
     private final int vehicles;
     private final int bonus;
     private final int steps;
+    private double longRideMinStep;
+    private double longRideRatio;
 
     public Maps(String rows, String columns, String vehicles, String bonus, String steps) {
         this.rows = Integer.parseInt(rows);
@@ -20,6 +22,8 @@ public class Maps {
         this.bonus = Integer.parseInt(bonus);
         this.steps = Integer.parseInt(steps);
         this.vehicleRides = new ArrayList<>(this.vehicles);
+        this.longRideMinStep = this.steps * 0.948d;
+        this.longRideRatio = 15;
     }
 
     public int getRows() {
@@ -54,4 +58,19 @@ public class Maps {
         return vehicleRides;
     }
 
+    public double getLongRideMinStep() {
+        return longRideMinStep;
+    }
+
+    public void setLongRideMinStep(double ratio) {
+        this.longRideMinStep = ratio * this.steps;
+    }
+
+    public double getLongRideRatio() {
+        return longRideRatio;
+    }
+
+    public void setLongRideRatio(double ratio) {
+        this.longRideRatio = ratio;
+    }
 }

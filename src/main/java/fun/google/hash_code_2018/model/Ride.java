@@ -24,4 +24,8 @@ public interface Ride {
 
     int getSize();
 
+    int getTimeToClosestNextRide();
+
+    void setTimeToClosestNextRide(int timeToClosestNextRide);
+
 }

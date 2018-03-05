@@ -12,6 +12,7 @@ public class BookedRide implements Ride {
     private final int earliestFinish;
     private final int latestFinish;
     private final int duration;
+    private final boolean canReachBonus;
     private int timeToClosestNextRide;
 
     public BookedRide(Simulation simulation, String rideId, Point start, Point finish, int earliestStart, int latestFinish) {
@@ -24,6 +25,7 @@ public class BookedRide implements Ride {
         this.duration = this.start.distanceTo(this.finish);
         this.latestStart = latestFinish - this.duration;
         this.earliestFinish = earliestStart + this.duration;
+        this.canReachBonus = earliestStart >= Point.ORIGIN.distanceTo(this.start);
     }
 
     @Override
@@ -81,12 +83,18 @@ public class BookedRide implements Ride {
         return simulation.maps.getBonus();
     }
 
-    public void setTimeToClosestNextRide(int timeToClosestNextRide) {
-        this.timeToClosestNextRide = timeToClosestNextRide;
-    }
-
+    @Override
     public int getTimeToClosestNextRide() {
         return timeToClosestNextRide;
+    }
+
+    public boolean isCanReachBonus() {
+        return canReachBonus;
+    }
+
+    @Override
+    public void setTimeToClosestNextRide(int timeToClosestNextRide) {
+        this.timeToClosestNextRide = timeToClosestNextRide;
     }
 
     @Override

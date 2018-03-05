@@ -55,4 +55,14 @@ public class StartingRide implements Ride {
     public int getSize() {
         return 0;
     }
+
+    @Override
+    public int getTimeToClosestNextRide() {
+        return 0;
+    }
+
+    @Override
+    public void setTimeToClosestNextRide(int timeToClosestNextRide) {
+
+    }
 }

@@ -14,18 +14,60 @@ import io.jenetics.SwapMutator;
 import io.jenetics.engine.Engine;
 import io.jenetics.util.ISeq;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import static io.jenetics.engine.EvolutionResult.toBestPhenotype;
 import static io.jenetics.engine.Limits.bySteadyFitness;
+
+class Pair {
+    private final Ride startRide;
+    private final Ride endRide;
+    private final int score;
+
+    public Pair(Ride startRide, Ride endRide, int score) {
+        this.startRide = startRide;
+        this.endRide = endRide;
+        this.score = score;
+    }
+
+    public Ride getStartRide() {
+        return startRide;
+    }
+
+    public Ride getEndRide() {
+        return endRide;
+    }
+
+    public int getScore() {
+        return score;
+    }
+}
 
 public class Simulation {
 
     public Maps maps = null;
 
     public int simulate() {
+        calculateStats();
+
+//        maps.getRides().forEach(r1 -> {
+//            int sumOfDistanceToNextRides = maps.getRides().parallelStream()
+//                    .filter(r2 -> r2 != r1)
+//                    .mapToInt(r2 -> {
+//                        int distanceTo = r1.getFinish().distanceTo(r2.getStart());
+//                        int earliestArrival = r1.getEarliestFinish() + distanceTo;
+//                        if (earliestArrival <= r2.getLatestStart()) {
+//                            return r2.getLatestStart() - earliestArrival;
+//                        }
+//                        return 0;
+//                    })
+//                    .sum();
+//            if (sumOfDistanceToNextRides == 0) {
+//                sumOfDistanceToNextRides = Integer.MAX_VALUE;
+//            }
+//            r1.setTimeToClosestNextRide(sumOfDistanceToNextRides);
+//        });
+
         maps.getRides().forEach(r1 -> {
             maps.getRides().parallelStream()
                     .filter(r2 -> r2 != r1)
@@ -33,7 +75,7 @@ public class Simulation {
                         int distanceTo = r1.getFinish().distanceTo(r2.getStart());
                         int earliestArrival = r1.getEarliestFinish() + distanceTo;
                         if (earliestArrival <= r2.getLatestStart()) {
-                            return distanceTo;
+                            return r2.getLatestStart() - earliestArrival;
                         }
                         return Integer.MAX_VALUE;
                     })
@@ -41,22 +83,9 @@ public class Simulation {
                     .ifPresent(((BookedRide) r1)::setTimeToClosestNextRide);
         });
 
+        //tryToFindRidePairs();
 
-        maps.getRides().forEach(r1 -> {
-            maps.getRides().parallelStream()
-                    .filter(r2 -> r2 != r1)
-                    .mapToInt(r2 -> {
-                        int distanceTo = r1.getFinish().distanceTo(r2.getStart());
-                        int earliestArrival = r1.getEarliestFinish() + distanceTo;
-                        if (earliestArrival <= r2.getLatestStart()) {
-                            return distanceTo;
-                        }
-                        return Integer.MAX_VALUE;
-                    })
-                    .min()
-                    .ifPresent(((BookedRide) r1)::setTimeToClosestNextRide);
-        });
-
+        maps.getVehicleRides().clear();
         for (int i = 0; i < maps.getVehicles(); i++) {
             maps.getVehicleRides().add(new VehicleRides(this));
         }
@@ -67,71 +96,129 @@ public class Simulation {
             maps.getVehicleRides().forEach(vr -> {
                 maps.getRides().parallelStream()
                         .filter(vr::canRide)
-                        .min(Comparator.comparingInt(vr::wasteTimeTo))
+                        .min(Comparator.comparingDouble(vr::wasteTimeTo))
                         .ifPresent(vr::add);
                 maps.getRides().removeAll(vr.getRides());
             });
         }
 
-        System.out.println("Remaining rides " + remainingRides);
+        geneticEngine();
 
-        maps.getRides().sort(Comparator.comparingInt(r -> ((BookedRide) r).getTimeToClosestNextRide()));
-        maps.getVehicleRides().sort(Comparator.comparingInt(Ride::getDuration));
-
-        //geneticEngine();
+        //tryToOptimize();
 
         return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
     }
 
-    private void geneticEngine() {
-        List<Ride> foundOrder = new ArrayList<>(maps.getRides());
-        maps.getVehicleRides().forEach(vr -> {
-            foundOrder.add(new StartingRide());
-            foundOrder.addAll(vr.getRides());
+    private void calculateStats() {
+        int maximumScore = maps.getRides().stream().mapToInt(r -> {
+            BookedRide bookedRide = (BookedRide) r;
+            return bookedRide.getDuration() + (bookedRide.isCanReachBonus() ? bookedRide.getBonus() : 0);
+        }).sum();
+        System.out.println("Maximum score is " + maximumScore);
+    }
+
+    private void tryToOptimize() {
+        maps.getRides().sort(Comparator.comparingInt(Ride::getTimeToClosestNextRide));
+        maps.getVehicleRides().sort(Comparator.comparingInt(Ride::getScore));
+
+        VehicleRides vr = maps.getVehicleRides().get(0);
+        maps.getRides().addAll(vr.getRides());
+        vr.getRides().clear();
+        maps.getRides().parallelStream()
+                .filter(vr::canRide)
+                .min(Comparator.comparingDouble(vr::wasteTimeTo))
+                .ifPresent(vr::add);
+        maps.getRides().removeAll(vr.getRides());
+
+        System.out.println(maps.getVehicleRides());
+    }
+
+    private void tryToFindRidePairs() {
+        Map<Ride, Pair> pairsFound = new HashMap<>();
+
+        maps.getRides().forEach(r1 -> {
+            maps.getRides().parallelStream()
+                    .filter(r2 -> r2 != r1)
+                    .forEach(r2 -> {
+                        int distanceTo = r1.getFinish().distanceTo(r2.getStart());
+                        int earliestArrival = r1.getEarliestFinish() + distanceTo;
+                        if (earliestArrival == r2.getLatestStart() && distanceTo < 1000) {
+                            if (pairsFound.containsKey(r1)) {
+                                if (pairsFound.get(r1).getScore() < distanceTo) {
+                                    return;
+                                }
+                            }
+                            pairsFound.put(r1, new Pair(r1, r2, distanceTo));
+                        }
+                    });
         });
 
-        final TravelingSalesman tsm =
-                new TravelingSalesman(maps, ISeq.of(foundOrder));
+        // Put optimized rides
+        pairsFound.values().forEach(pair -> {
+            VehicleRides optimizedRide = new VehicleRides(this, pair.getStartRide(), pair.getEndRide());
+            maps.getRides().add(optimizedRide);
+            maps.getRides().remove(pair.getStartRide());
+            maps.getRides().remove(pair.getEndRide());
+        });
+    }
 
-        final Engine<EnumGene<Ride>, Double> engine = Engine.builder(tsm)
-                .optimize(Optimize.MAXIMUM)
-                .alterers(
-                        new SwapMutator<>(0.15),
-                        new PartiallyMatchedCrossover<>(0.15)
-                )
-                .build();
+    private void geneticEngine() {
+        int numberOfOptimizedRides = 1;
+        while (numberOfOptimizedRides != 0) {
+            numberOfOptimizedRides = 0;
+            maps.getVehicleRides().sort(Comparator.comparingInt(Ride::getScore));
+            for (int i = 0; i < maps.getVehicleRides().size(); i++) {
+                List<Ride> foundOrder = new ArrayList<>(maps.getRides());
+                VehicleRides vr = maps.getVehicleRides().get(i);
+                foundOrder.add(new StartingRide());
+                foundOrder.addAll(vr.getRides());
 
-        final Phenotype<EnumGene<Ride>, Double> best = engine.stream()
-                .limit(bySteadyFitness(10))
-                .limit(10)
-                .peek(r -> System.out.println("Best fitness " + r.getBestFitness() + " at " + r.getGeneration()))
-                .collect(toBestPhenotype());
+                System.out.println("Optimizing ride " + vr.toString());
 
-        final ISeq<Ride> path = best.getGenotype()
-                .getChromosome().toSeq()
-                .map(Gene::getAllele);
+                int startingScore = vr.getScore();
+                final TravelingSalesman tsm =
+                        new TravelingSalesman(maps, ISeq.of(foundOrder));
 
-        double bestSum = tsm.fitness().apply(path);
+                final Engine<EnumGene<Ride>, Double> engine = Engine.builder(tsm)
+                        .optimize(Optimize.MAXIMUM)
+                        .alterers(
+                                new SwapMutator<>(0.15),
+                                new PartiallyMatchedCrossover<>(0.15)
+                        )
+                        .build();
 
-        System.out.println("Best score: " + bestSum);
+                final Phenotype<EnumGene<Ride>, Double> best = engine.stream()
+//                        .limit(bySteadyFitness(1000))
+                        .limit(10000)
+//                .peek(r -> System.out.println("Best fitness " + r.getBestFitness() + " at " + r.getGeneration()))
+                        .collect(toBestPhenotype());
 
-        maps.getVehicleRides().clear();
-        VehicleRides nextRide = null;
-        for (Ride ride : path) {
-            if (ride instanceof StartingRide) {
-                if (nextRide != null) {
-                    maps.getVehicleRides().add(nextRide);
+                final ISeq<Ride> path = best.getGenotype()
+                        .getChromosome().toSeq()
+                        .map(Gene::getAllele);
+
+                double bestSum = tsm.fitness().apply(path);
+                if (bestSum > startingScore) {
+                    System.out.println("Found best score " + bestSum);
+                    numberOfOptimizedRides++;
+                    maps.getRides().clear();
+                    vr.getRides().clear();
+                    boolean foundStartingRide = false;
+                    for (Ride ride : path) {
+                        if (ride instanceof StartingRide) {
+                            foundStartingRide = true;
+                            continue;
+                        }
+                        if (!foundStartingRide) {
+                            maps.getRides().add(ride);
+                        } else {
+                            vr.getRides().add(ride);
+                        }
+                    }
                 }
-                nextRide = new VehicleRides(this);
-                continue;
             }
-            if (nextRide == null) {
-                continue;
-            }
-
-            nextRide.add(ride);
+            System.out.println("optimized " + numberOfOptimizedRides);
         }
-        maps.getVehicleRides().add(nextRide);
     }
 
     public boolean isInitialized() {
