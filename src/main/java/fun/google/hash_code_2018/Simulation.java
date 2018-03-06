@@ -109,6 +109,15 @@ public class Simulation {
         return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
     }
 
+    public int resumeSimulate() {
+
+        geneticEngine();
+
+        //tryToOptimize();
+
+        return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
+    }
+
     private void calculateStats() {
         int maximumScore = maps.getRides().stream().mapToInt(r -> {
             BookedRide bookedRide = (BookedRide) r;
