@@ -118,7 +118,10 @@ public class ReadFile {
                     VehicleRides vehicleRides = new VehicleRides(simulation);
                     for (int i = 1; i < lineParsed.length; i++) {
                         String rideId = lineParsed[i];
-                        simulation.maps.getRides().stream().filter(r -> r.getRideId().equals(rideId)).findFirst().ifPresent(vehicleRides::add);
+                        simulation.maps.getRides().stream()
+                                .filter(r -> r.getRideId().equals(rideId))
+                                .filter(vehicleRides::canRide)
+                                .findFirst().ifPresent(vehicleRides::add);
                     }
                     simulation.maps.getVehicleRides().add(vehicleRides);
                 });

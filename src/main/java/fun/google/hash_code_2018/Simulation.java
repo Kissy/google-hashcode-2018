@@ -1,5 +1,6 @@
 package fun.google.hash_code_2018;
 
+import fun.google.hash_code_2018.file_parser.WriteFile;
 import fun.google.hash_code_2018.model.BookedRide;
 import fun.google.hash_code_2018.model.Maps;
 import fun.google.hash_code_2018.model.Ride;
@@ -14,6 +15,7 @@ import io.jenetics.SwapMutator;
 import io.jenetics.engine.Engine;
 import io.jenetics.util.ISeq;
 
+import java.io.IOException;
 import java.util.*;
 
 import static io.jenetics.engine.EvolutionResult.toBestPhenotype;
@@ -173,16 +175,20 @@ public class Simulation {
 
     private void geneticEngine() {
         int numberOfOptimizedRides = 1;
+        int previousTotalScore = 0;
         while (numberOfOptimizedRides != 0) {
-            numberOfOptimizedRides = 0;
+            numberOfOptimizedRides =  maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
             maps.getVehicleRides().sort(Comparator.comparingInt(Ride::getScore));
             for (int i = 0; i < maps.getVehicleRides().size(); i++) {
+                maps.getRides().sort(Comparator.comparingInt(Ride::getScore));
+                maps.getRides().
+
                 List<Ride> foundOrder = new ArrayList<>(maps.getRides());
                 VehicleRides vr = maps.getVehicleRides().get(i);
                 foundOrder.add(new StartingRide());
                 foundOrder.addAll(vr.getRides());
 
-                System.out.println("Optimizing ride " + vr.toString());
+                System.out.println("Optimizing " + maps.getRides().size() + " rides with " + vr.toString());
 
                 int startingScore = vr.getScore();
                 final TravelingSalesman tsm =
@@ -197,9 +203,9 @@ public class Simulation {
                         .build();
 
                 final Phenotype<EnumGene<Ride>, Double> best = engine.stream()
-//                        .limit(bySteadyFitness(1000))
+                        .limit(bySteadyFitness(1000))
                         .limit(10000)
-//                .peek(r -> System.out.println("Best fitness " + r.getBestFitness() + " at " + r.getGeneration()))
+                //.peek(r -> System.out.println("Best fitness " + r.getBestFitness() + " at " + r.getGeneration()))
                         .collect(toBestPhenotype());
 
                 final ISeq<Ride> path = best.getGenotype()
@@ -218,7 +224,7 @@ public class Simulation {
                             foundStartingRide = true;
                             continue;
                         }
-                        if (!foundStartingRide) {
+                        if (!foundStartingRide || !vr.canRide(ride)) {
                             maps.getRides().add(ride);
                         } else {
                             vr.getRides().add(ride);
@@ -227,6 +233,16 @@ public class Simulation {
                 }
             }
             System.out.println("optimized " + numberOfOptimizedRides);
+            int newTotalScore = maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
+            if (newTotalScore > previousTotalScore) {
+                System.out.println("NEW TOTAL SCORE " + newTotalScore);
+                try {
+                    WriteFile.writeFileToPath(Collections.singletonMap("d_metropolis.in", maps));
+                    previousTotalScore = newTotalScore;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
