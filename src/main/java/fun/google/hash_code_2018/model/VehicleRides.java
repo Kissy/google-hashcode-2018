@@ -33,14 +33,15 @@ public class VehicleRides implements Ride, Comparable<VehicleRides> {
 
     public void add(Ride ride) {
         this.rides.add(ride);
+        if (ride instanceof BookedRide) {
+            ((BookedRide) ride).setTaken(true);
+        }
         calculateDurationAndScore();
-        calculateRatio();
     }
 
     public Ride remove(int index) {
         Ride removedRide = this.rides.remove(index);
         calculateDurationAndScore();
-        calculateRatio();
         return removedRide;
     }
 
@@ -147,30 +148,16 @@ public class VehicleRides implements Ride, Comparable<VehicleRides> {
                 bonus += currentRide.getBonus();
             }
             duration += currentRide.getDuration();
-            if (duration <= currentRide.getLatestFinish() && duration < simulation.maps.getSteps()) {
+            if (duration <= currentRide.getLatestFinish()) {
                 score += currentRide.getScore();
             }
             previousPoint = currentRide.getFinish();
         }
     }
 
-    private void calculateRatio() {
-//        double waitRatio = this.duration / (double) (getLastRide().getEarliestStart() - getFirstRide().getDuration());
-//        double waitRatio = 0;
-//        if (simulation.maps.getBonus() > 500) {
-//            double scoreRatio = (1 / (double) this.getDuration()) * this.bonus / 1000;
-//            this.ratio = waitRatio > 0 ? scoreRatio * waitRatio : scoreRatio;
-//        } else {
-//            double scoreRatio = getScore() / (double) this.getDuration();
-//            this.ratio = waitRatio > 0 ? scoreRatio * waitRatio : scoreRatio;
-//        }
-        // wasted time
-        this.ratio = this.duration - this.score;
-    }
-
     public boolean canRide(Ride ride) {
         VehicleRides vehicleRides = new VehicleRides(simulation, this, ride);
-        return vehicleRides.getDuration() <= ride.getLatestFinish() && vehicleRides.getDuration() < simulation.maps.getSteps();
+        return vehicleRides.getDuration() <= ride.getLatestFinish();
     }
 
     public double wasteTimeTo(Ride ride) {

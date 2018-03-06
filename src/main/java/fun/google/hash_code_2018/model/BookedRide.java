@@ -2,7 +2,26 @@ package fun.google.hash_code_2018.model;
 
 import fun.google.hash_code_2018.Simulation;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+
 public class BookedRide implements Ride {
+    class PossibleNextRide {
+        BookedRide ride;
+        public Integer distance;
+
+        PossibleNextRide(BookedRide bookedRide, BookedRide nextRide) {
+            this.ride = nextRide;
+            this.distance = bookedRide.possibleDistanceToRide(nextRide);
+        }
+
+        boolean isTaken() {
+            return ride.isTaken();
+        }
+    }
+
     private Simulation simulation;
     private final String rideId;
     private final Point start;
@@ -13,7 +32,8 @@ public class BookedRide implements Ride {
     private final int latestFinish;
     private final int duration;
     private final boolean canReachBonus;
-    private int timeToClosestNextRide;
+    //private int timeToClosestNextRide;
+    private boolean taken = false;
 
     public BookedRide(Simulation simulation, String rideId, Point start, Point finish, int earliestStart, int latestFinish) {
         this.simulation = simulation;
@@ -85,7 +105,13 @@ public class BookedRide implements Ride {
 
     @Override
     public int getTimeToClosestNextRide() {
-        return timeToClosestNextRide;
+        return simulation.maps.getRides().parallelStream()
+                .filter(r2 -> r2 != this)
+                .map(r2 -> (BookedRide) r2)
+                .filter(r2 -> !r2.isTaken())
+                .min(Comparator.comparingInt(this::possibleDistanceToRide))
+                .map(this::possibleDistanceToRide)
+                .orElse(Integer.MAX_VALUE);
     }
 
     public boolean isCanReachBonus() {
@@ -94,7 +120,25 @@ public class BookedRide implements Ride {
 
     @Override
     public void setTimeToClosestNextRide(int timeToClosestNextRide) {
-        this.timeToClosestNextRide = timeToClosestNextRide;
+        //this.timeToClosestNextRide = timeToClosestNextRide;
+    }
+
+    private int possibleDistanceToRide(Ride ride) {
+        int distanceTo = getFinish().distanceTo(ride.getStart());
+        int latestArrival = getLatestFinish() + distanceTo;
+        if (latestArrival <= ride.getLatestStart()) {
+            //return Math.max(distanceTo, ride.getLatestStart() - getLatestFinish());
+            return distanceTo;
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    public boolean isTaken() {
+        return taken;
+    }
+
+    public void setTaken(boolean taken) {
+        this.taken = taken;
     }
 
     @Override
@@ -105,7 +149,7 @@ public class BookedRide implements Ride {
                 " (" + duration + ")" +
                 ", earliestStart=" + earliestStart +
                 ", latestFinish=" + latestFinish +
-                ", timeToClosestNextRide=" + timeToClosestNextRide +
+                //", timeToClosestNextRide=" + timeToClosestNextRide +
                 '}';
     }
 }

@@ -39,6 +39,7 @@ public class ReadFile {
         longRideRatio.put("b_should_be_easy.in", 1d);
         longRideRatio.put("c_no_hurry.in", 108d);
         longRideRatio.put("d_metropolis.in", 0.44);
+//        longRideRatio.put("d_metropolis.in", 15d);
         longRideRatio.put("e_high_bonus.in", 2d);
     }
 
@@ -46,8 +47,9 @@ public class ReadFile {
     static {
         longRideMinStep.put("a_example.in", 0.98);
         longRideMinStep.put("b_should_be_easy.in", 0.98);
-        longRideMinStep.put("c_no_hurry.in", 1.0);
+        longRideMinStep.put("c_no_hurry.in", 1d);
         longRideMinStep.put("d_metropolis.in", 0.802);
+//        longRideMinStep.put("d_metropolis.in", 0.98);
         longRideMinStep.put("e_high_bonus.in", 0.98);
     }
 

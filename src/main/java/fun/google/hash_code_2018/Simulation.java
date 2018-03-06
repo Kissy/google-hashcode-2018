@@ -14,10 +14,13 @@ import io.jenetics.SwapMutator;
 import io.jenetics.engine.Engine;
 import io.jenetics.util.ISeq;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static io.jenetics.engine.EvolutionResult.toBestPhenotype;
-import static io.jenetics.engine.Limits.bySteadyFitness;
 
 class Pair {
     private final Ride startRide;
@@ -68,33 +71,41 @@ public class Simulation {
 //            r1.setTimeToClosestNextRide(sumOfDistanceToNextRides);
 //        });
 
-        maps.getRides().forEach(r1 -> {
-            maps.getRides().parallelStream()
-                    .filter(r2 -> r2 != r1)
-                    .mapToInt(r2 -> {
-                        int distanceTo = r1.getFinish().distanceTo(r2.getStart());
-                        int earliestArrival = r1.getEarliestFinish() + distanceTo;
-                        if (earliestArrival <= r2.getLatestStart()) {
-                            return r2.getLatestStart() - earliestArrival;
-                        }
-                        return Integer.MAX_VALUE;
-                    })
-                    .min()
-                    .ifPresent(((BookedRide) r1)::setTimeToClosestNextRide);
-        });
+//        maps.getRides().parallelStream().forEach(r1 -> {
+//            maps.getRides().stream()
+//                    .filter(r2 -> r2 != r1)
+//                    .map(r2 -> (BookedRide) r2)
+//                    .forEach(((BookedRide) r1)::calculatePossibleDistanceToRide);
+//            ((BookedRide) r1).sortClosestRides();
+//        });
+
+//        maps.getRides().forEach(r1 -> {
+//            List<BookedRide> orderRidesByBestDistance = maps.getRides().parallelStream()
+//                    .filter(r2 -> r2 != r1)
+//                    .sorted(Comparator.comparingInt(((BookedRide) r1)::possibleDistanceToRide))
+//                    .filter(r2 -> ((BookedRide) r1).possibleDistanceToRide(r2) != Integer.MAX_VALUE)
+//                    .map(r2 -> (BookedRide) r2)
+//                    .collect(Collectors.toList());
+//            ((BookedRide) r1).setClosestRides(orderRidesByBestDistance);
+//        });
 
         //tryToFindRidePairs();
 
         maps.getVehicleRides().clear();
         for (int i = 0; i < maps.getVehicles(); i++) {
-            maps.getVehicleRides().add(new VehicleRides(this));
+            VehicleRides vr = new VehicleRides(this);
+//            if (i < maps.getVehicles() / 2) {
+//                double ratio = i / maps.getVehicles();
+//                vr.add(new EmptyRide(this, Point.ORIGIN, new Point((int) Math.round(maps.getRows() * ratio), (int) Math.round(maps.getColumns() * ratio))));
+//            }
+            maps.getVehicleRides().add(vr);
         }
 
         int remainingRides = 0;
         while (maps.getRides().size() != remainingRides) {
             remainingRides = maps.getRides().size();
             maps.getVehicleRides().forEach(vr -> {
-                maps.getRides().parallelStream()
+                maps.getRides().stream()
                         .filter(vr::canRide)
                         .min(Comparator.comparingDouble(vr::wasteTimeTo))
                         .ifPresent(vr::add);
@@ -102,7 +113,7 @@ public class Simulation {
             });
         }
 
-        geneticEngine();
+//        geneticEngine();
 
         //tryToOptimize();
 
@@ -199,7 +210,7 @@ public class Simulation {
                 final Phenotype<EnumGene<Ride>, Double> best = engine.stream()
 //                        .limit(bySteadyFitness(1000))
                         .limit(10000)
-//                .peek(r -> System.out.println("Best fitness " + r.getBestFitness() + " at " + r.getGeneration()))
+//                        .peek(r -> System.out.println("Best fitness " + r.getBestFitness() + " at " + r.getGeneration()))
                         .collect(toBestPhenotype());
 
                 final ISeq<Ride> path = best.getGenotype()
