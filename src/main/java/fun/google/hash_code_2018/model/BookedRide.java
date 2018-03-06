@@ -14,6 +14,7 @@ public class BookedRide implements Ride {
     private final int duration;
     private final boolean canReachBonus;
     private int timeToClosestNextRide;
+    private boolean taken = false;
 
     public BookedRide(Simulation simulation, String rideId, Point start, Point finish, int earliestStart, int latestFinish) {
         this.simulation = simulation;
@@ -95,6 +96,14 @@ public class BookedRide implements Ride {
     @Override
     public void setTimeToClosestNextRide(int timeToClosestNextRide) {
         this.timeToClosestNextRide = timeToClosestNextRide;
+    }
+
+    public boolean isTaken() {
+        return taken;
+    }
+
+    public void setTaken(boolean taken) {
+        this.taken = taken;
     }
 
     @Override

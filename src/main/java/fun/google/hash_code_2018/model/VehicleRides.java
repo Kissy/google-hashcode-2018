@@ -169,17 +169,15 @@ public class VehicleRides implements Ride, Comparable<VehicleRides> {
     }
 
     public boolean canRide(Ride ride) {
-        VehicleRides vehicleRides = new VehicleRides(simulation, this, ride);
-        return vehicleRides.getDuration() <= ride.getLatestFinish() && vehicleRides.getDuration() < simulation.maps.getSteps();
+        int arrivalTime = this.duration + getFinish().distanceTo(ride.getStart());
+        return arrivalTime + ride.getDuration() <= ride.getLatestFinish();
     }
 
     public double wasteTimeTo(Ride ride) {
         int durationToRide = this.getFinish().distanceTo(ride.getStart());
-        double finishFarMalus = (this.duration + durationToRide < simulation.maps.getLongRideMinStep()) ? (ride.getTimeToClosestNextRide() / simulation.maps.getLongRideRatio()) : 0;
-        if (this.duration + durationToRide >= ride.getEarliestStart()) {
-            return durationToRide + finishFarMalus;
-        }
-        return ride.getEarliestStart() - this.duration + finishFarMalus;
+        int earliestArrival = Math.max(this.duration + durationToRide, ride.getEarliestStart());
+        int finishFarMalus = (earliestArrival + ride.getDuration() <= simulation.maps.getLongRideMinStep()) ? (int) (ride.getTimeToClosestNextRide() / simulation.maps.getLongRideRatio()) : 0;
+        return earliestArrival - this.duration + finishFarMalus;
     }
 
     public String getStringToFile() {

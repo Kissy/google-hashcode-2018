@@ -63,7 +63,7 @@ public class Maps {
     }
 
     public void setLongRideMinStep(double ratio) {
-        this.longRideMinStep = ratio * this.steps;
+        this.longRideMinStep = this.steps * ratio;
     }
 
     public double getLongRideRatio() {

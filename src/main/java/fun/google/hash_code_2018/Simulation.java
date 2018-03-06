@@ -50,7 +50,7 @@ public class Simulation {
     public Maps maps = null;
 
     public int simulate() {
-        calculateStats();
+//        calculateStats();
 
 //        maps.getRides().forEach(r1 -> {
 //            int sumOfDistanceToNextRides = maps.getRides().parallelStream()
@@ -70,21 +70,6 @@ public class Simulation {
 //            r1.setTimeToClosestNextRide(sumOfDistanceToNextRides);
 //        });
 
-        maps.getRides().forEach(r1 -> {
-            maps.getRides().parallelStream()
-                    .filter(r2 -> r2 != r1)
-                    .mapToInt(r2 -> {
-                        int distanceTo = r1.getFinish().distanceTo(r2.getStart());
-                        int earliestArrival = r1.getEarliestFinish() + distanceTo;
-                        if (earliestArrival <= r2.getLatestStart()) {
-                            return r2.getLatestStart() - earliestArrival;
-                        }
-                        return Integer.MAX_VALUE;
-                    })
-                    .min()
-                    .ifPresent(((BookedRide) r1)::setTimeToClosestNextRide);
-        });
-
         //tryToFindRidePairs();
 
         maps.getVehicleRides().clear();
@@ -92,19 +77,47 @@ public class Simulation {
             maps.getVehicleRides().add(new VehicleRides(this));
         }
 
+        Map<Ride, List<BookedRide>> closestRide = new HashMap<>();
+        maps.getRides().forEach(r1 -> {
+            maps.getRides().parallelStream()
+                    .filter(r2 -> r2 != r1)
+                    .filter(r2 -> !((BookedRide) r2).isTaken())
+                    .min(Comparator.comparingInt(r2 -> r1.getFinish().distanceTo(r2.getStart())))
+                    .ifPresent(r2 -> {
+                        r1.setTimeToClosestNextRide(r1.getFinish().distanceTo(r2.getStart()));
+                        closestRide.putIfAbsent(r2, new ArrayList<>());
+                        closestRide.get(r2).add((BookedRide) r1);
+                    });
+        });
+
         int remainingRides = 0;
         while (maps.getRides().size() != remainingRides) {
             remainingRides = maps.getRides().size();
             maps.getVehicleRides().forEach(vr -> {
-                maps.getRides().parallelStream()
+                maps.getRides().stream()
                         .filter(vr::canRide)
                         .min(Comparator.comparingDouble(vr::wasteTimeTo))
-                        .ifPresent(vr::add);
+                        .ifPresent(r -> {
+                            vr.add(r);
+                            ((BookedRide) r).setTaken(true);
+//
+//                            closestRide.getOrDefault(r, Collections.emptyList()).forEach(r1 -> {
+//                                maps.getRides().parallelStream()
+//                                        .filter(r2 -> r2 != r1)
+//                                        .filter(r2 -> !((BookedRide) r2).isTaken())
+//                                        .min(Comparator.comparingInt(r2 -> r1.getFinish().distanceTo(r2.getStart())))
+//                                        .ifPresent(r2 -> {
+//                                            r1.setTimeToClosestNextRide(r1.getFinish().distanceTo(r2.getStart()));
+//                                            closestRide.putIfAbsent(r2, new ArrayList<>());
+//                                            closestRide.get(r2).add(r1);
+//                                        });
+//                            });
+                        });
                 maps.getRides().removeAll(vr.getRides());
             });
         }
 
-        geneticEngine();
+        //geneticEngine();
 
         //tryToOptimize();
 
@@ -113,9 +126,18 @@ public class Simulation {
 
     public int resumeSimulate() {
 
-        geneticEngine();
+        //geneticEngine();
 
         //tryToOptimize();
+
+        maps.getRides().forEach(r -> {
+            maps.getVehicleRides()
+                    .stream()
+                    .filter(vr -> vr.canRide(r))
+                    .forEach(vr -> {
+                        System.out.println("ok");
+            });
+        });
 
         return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
     }

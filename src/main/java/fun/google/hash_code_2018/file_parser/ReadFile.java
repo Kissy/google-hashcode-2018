@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +39,7 @@ public class ReadFile {
         longRideRatio.put("a_example.in", 1d);
         longRideRatio.put("b_should_be_easy.in", 1d);
         longRideRatio.put("c_no_hurry.in", 108d);
-        longRideRatio.put("d_metropolis.in", 0.44);
+        longRideRatio.put("d_metropolis.in", 16.2d);
         longRideRatio.put("e_high_bonus.in", 2d);
     }
 
@@ -47,7 +48,7 @@ public class ReadFile {
         longRideMinStep.put("a_example.in", 0.98);
         longRideMinStep.put("b_should_be_easy.in", 0.98);
         longRideMinStep.put("c_no_hurry.in", 1.0);
-        longRideMinStep.put("d_metropolis.in", 0.802);
+        longRideMinStep.put("d_metropolis.in", 0.9695);
         longRideMinStep.put("e_high_bonus.in", 0.98);
     }
 
@@ -65,21 +66,24 @@ public class ReadFile {
             readInputFileToSimulation(holder, file, filename, simulation);
 
             int simulateTotal = 0;
-//            for (int i = 1; i < 5000; i++) {
+            for (int i = 1; i < 5000; i++) { // => 12
                 List<Ride> savesRides = new ArrayList<>(simulation.maps.getRides());
-                simulation.maps.setLongRideRatio(longRideRatio.get(filename));
+//                simulation.maps.setLongRideRatio(longRideRatio.get(filename));
+                simulation.maps.setLongRideRatio(16.15 + (i / 100));
                 simulation.maps.setLongRideMinStep(longRideMinStep.get(filename));
+//                simulation.maps.setLongRideMinStep(0.970 - (i / 1000));
                 int currentSimulationTotal = simulation.simulate();
                 if (currentSimulationTotal > simulateTotal) {
                     simulateTotal = currentSimulationTotal;
-//                    System.out.println("New best " + filename + " = " + simulateTotal + " (" + NumberFormat.getInstance().format(simulateTotal) + ") for " + i);
+                    System.out.println("New best " + filename + " = " + currentSimulationTotal + " (" + NumberFormat.getInstance().format(simulateTotal) + ") for " + i);
                     System.out.println("Remaining rides " + simulation.maps.getRides().size());
+                    WriteFile.writeFileToPath(Collections.singletonMap(filename, simulation.maps));
                 } else {
-//                    System.out.println("Not best " + filename + " = " + simulateTotal + " (" + NumberFormat.getInstance().format(simulateTotal) + ") for " + i);
+                    System.out.println("Not best " + filename + " = " + currentSimulationTotal + " (" + NumberFormat.getInstance().format(simulateTotal) + ") for " + i);
                 }
                 simulation.maps.getRides().clear();
                 simulation.maps.getRides().addAll(savesRides);
-//            }
+            }
 
             if (simulateTotal > bestScore.get(filename)) {
                 System.out.println("[BEST] Total for " + filename + " = " + simulateTotal + " (" + NumberFormat.getInstance().format(simulateTotal) + ")");
