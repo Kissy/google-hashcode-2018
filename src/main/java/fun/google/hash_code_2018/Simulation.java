@@ -79,19 +79,13 @@ public class Simulation {
 
         Map<Ride, List<BookedRide>> closestRide = new HashMap<>();
         maps.getRides().forEach(r1 -> {
-            maps.getRides().parallelStream()
-                    .filter(r2 -> r2 != r1)
-                    .filter(r2 -> !((BookedRide) r2).isTaken())
-                    .min(Comparator.comparingInt(r2 -> r1.getFinish().distanceTo(r2.getStart())))
-                    .ifPresent(r2 -> {
-                        r1.setTimeToClosestNextRide(r1.getFinish().distanceTo(r2.getStart()));
-                        closestRide.putIfAbsent(r2, new ArrayList<>());
-                        closestRide.get(r2).add((BookedRide) r1);
-                    });
+            updateClosestRides(closestRide, r1);
         });
 
         int remainingRides = 0;
         while (maps.getRides().size() != remainingRides) {
+//            System.out.println("iteration with remaining rides " + remainingRides);
+            Collections.shuffle(maps.getVehicleRides());
             remainingRides = maps.getRides().size();
             maps.getVehicleRides().forEach(vr -> {
                 maps.getRides().stream()
@@ -100,18 +94,16 @@ public class Simulation {
                         .ifPresent(r -> {
                             vr.add(r);
                             ((BookedRide) r).setTaken(true);
-//
-//                            closestRide.getOrDefault(r, Collections.emptyList()).forEach(r1 -> {
-//                                maps.getRides().parallelStream()
-//                                        .filter(r2 -> r2 != r1)
-//                                        .filter(r2 -> !((BookedRide) r2).isTaken())
-//                                        .min(Comparator.comparingInt(r2 -> r1.getFinish().distanceTo(r2.getStart())))
-//                                        .ifPresent(r2 -> {
-//                                            r1.setTimeToClosestNextRide(r1.getFinish().distanceTo(r2.getStart()));
-//                                            closestRide.putIfAbsent(r2, new ArrayList<>());
-//                                            closestRide.get(r2).add(r1);
-//                                        });
-//                            });
+
+                            List<BookedRide> removed = closestRide.remove(r);
+                            if (removed != null) {
+                                removed.forEach(r1 -> {
+                                    updateClosestRides(closestRide, r1);
+                                });
+                            }
+                            closestRide.values().forEach(l -> {
+                                l.remove(r);
+                            });
                         });
                 maps.getRides().removeAll(vr.getRides());
             });
@@ -122,6 +114,18 @@ public class Simulation {
         //tryToOptimize();
 
         return maps.getVehicleRides().stream().mapToInt(VehicleRides::getScore).sum();
+    }
+
+    private void updateClosestRides(Map<Ride, List<BookedRide>> closestRide, Ride r1) {
+        maps.getRides().parallelStream()
+                .filter(r2 -> r2 != r1)
+                .filter(r2 -> !((BookedRide) r2).isTaken())
+                .min(Comparator.comparingInt(r2 -> r1.getFinish().distanceTo(r2.getStart())))
+                .ifPresent(r2 -> {
+                    r1.setTimeToClosestNextRide(r1.getFinish().distanceTo(r2.getStart()));
+                    closestRide.putIfAbsent(r2, new ArrayList<>());
+                    closestRide.get(r2).add((BookedRide) r1);
+                });
     }
 
     public int resumeSimulate() {
@@ -203,7 +207,6 @@ public class Simulation {
             maps.getVehicleRides().sort(Comparator.comparingInt(Ride::getScore));
             for (int i = 0; i < maps.getVehicleRides().size(); i++) {
                 maps.getRides().sort(Comparator.comparingInt(Ride::getScore));
-                maps.getRides().
 
                 List<Ride> foundOrder = new ArrayList<>(maps.getRides());
                 VehicleRides vr = maps.getVehicleRides().get(i);

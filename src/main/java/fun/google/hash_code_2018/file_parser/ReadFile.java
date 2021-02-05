@@ -38,17 +38,21 @@ public class ReadFile {
     static {
         longRideRatio.put("a_example.in", 1d);
         longRideRatio.put("b_should_be_easy.in", 1d);
-        longRideRatio.put("c_no_hurry.in", 108d);
-        longRideRatio.put("d_metropolis.in", 16.2d);
-        longRideRatio.put("e_high_bonus.in", 2d);
+        longRideRatio.put("c_no_hurry.in", 1d);
+//        longRideRatio.put("d_metropolis.in", 16.22d);
+//        longRideRatio.put("d_metropolis.in", 7.48d);
+        longRideRatio.put("d_metropolis.in", 9.5d);
+        longRideRatio.put("e_high_bonus.in", 15d);
     }
 
     public static final Map<String, Double> longRideMinStep = new HashMap<>();
     static {
         longRideMinStep.put("a_example.in", 0.98);
         longRideMinStep.put("b_should_be_easy.in", 0.98);
-        longRideMinStep.put("c_no_hurry.in", 1.0);
-        longRideMinStep.put("d_metropolis.in", 0.9695);
+        longRideMinStep.put("c_no_hurry.in", 1d);
+//        longRideMinStep.put("d_metropolis.in", 0.9695);
+//        longRideMinStep.put("d_metropolis.in", 0.964);
+        longRideMinStep.put("d_metropolis.in", 0.97);
         longRideMinStep.put("e_high_bonus.in", 0.98);
     }
 
@@ -66,12 +70,12 @@ public class ReadFile {
             readInputFileToSimulation(holder, file, filename, simulation);
 
             int simulateTotal = 0;
-            for (int i = 1; i < 5000; i++) { // => 12
+            for (int i = 0; i < 5000; i++) { // => 12
                 List<Ride> savesRides = new ArrayList<>(simulation.maps.getRides());
-//                simulation.maps.setLongRideRatio(longRideRatio.get(filename));
-                simulation.maps.setLongRideRatio(16.15 + (i / 100));
+                simulation.maps.setLongRideRatio(longRideRatio.get(filename));
+//                simulation.maps.setLongRideRatio(1 + (i / 1));
                 simulation.maps.setLongRideMinStep(longRideMinStep.get(filename));
-//                simulation.maps.setLongRideMinStep(0.970 - (i / 1000));
+//                simulation.maps.setLongRideMinStep(0.98 - (i / 100));
                 int currentSimulationTotal = simulation.simulate();
                 if (currentSimulationTotal > simulateTotal) {
                     simulateTotal = currentSimulationTotal;

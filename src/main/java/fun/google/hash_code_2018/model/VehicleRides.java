@@ -5,6 +5,7 @@ import fun.google.hash_code_2018.Simulation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -176,7 +177,12 @@ public class VehicleRides implements Ride, Comparable<VehicleRides> {
     public double wasteTimeTo(Ride ride) {
         int durationToRide = this.getFinish().distanceTo(ride.getStart());
         int earliestArrival = Math.max(this.duration + durationToRide, ride.getEarliestStart());
-        int finishFarMalus = (earliestArrival + ride.getDuration() <= simulation.maps.getLongRideMinStep()) ? (int) (ride.getTimeToClosestNextRide() / simulation.maps.getLongRideRatio()) : 0;
+        VehicleRides vehicleRides = new VehicleRides(simulation, this, ride);
+        Optional<Ride> possibleRemainingRides = simulation.maps.getRides().stream()
+                .filter(r -> !((BookedRide) r).isTaken())
+                .filter(vehicleRides::canRide).findAny();
+        int finishFarMalus = (possibleRemainingRides.isPresent()) ? (int) (ride.getTimeToClosestNextRide() / simulation.maps.getLongRideRatio()) : 0;
+        //int finishFarMalus = (earliestArrival + ride.getDuration() <= simulation.maps.getLongRideMinStep()) ? (int) (ride.getTimeToClosestNextRide() / simulation.maps.getLongRideRatio()) : 0;
         return earliestArrival - this.duration + finishFarMalus;
     }
 
